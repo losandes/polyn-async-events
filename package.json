@@ -1,0 +1,43 @@
+{
+  "name": "@polyn/async-events",
+  "version": "0.1.0",
+  "description": "An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), and publishing events (waiting for subscriptions to be satisfied)",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "pre-push": "npm test && node pre-push.js",
+    "lint": "eslint ./src",
+    "lint:fix": "eslint ./src --fix",
+    "test": "node test.js -r nyan && npm run test:ts",
+    "test:ts": "tsc -p ./tsconfig.json && node ./examples-typescript.js -r nyan"
+  },
+  "pre-push": [
+    "pre-push"
+  ],
+  "keywords": [
+    "pubsub",
+    "event",
+    "events",
+    "emitter"
+  ],
+  "author": "losandes",
+  "license": "MIT",
+  "dependencies": {
+    "@polyn/blueprint": "~2.5.1",
+    "@polyn/immutable": "~1.0.7"
+  },
+  "devDependencies": {
+    "@types/chai": "~4.2.6",
+    "@types/node": "~12.12.14",
+    "chai": "~4.2.0",
+    "eslint": "~6.7.2",
+    "eslint-config-standard": "~14.1.0",
+    "eslint-plugin-import": "~2.19.1",
+    "eslint-plugin-node": "~10.0.0",
+    "eslint-plugin-promise": "~4.2.1",
+    "eslint-plugin-standard": "~4.0.1",
+    "pre-push": "~0.1.1",
+    "supposed": "~1.0.7-beta.1",
+    "typescript": "~3.7.3"
+  }
+}
