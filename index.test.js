@@ -5,7 +5,6 @@ module.exports = (test, dependencies) => {
   const random = id.makeId
 
   return test('given @polyn/async-events', {
-    '// TODO: unsubscribe': (expect) => {},
     'when I publish to a topic that has synchronous, and async subscriptions': {
       given: async () => {
         const topic = new Topic({ topic: String(random()) })
@@ -560,6 +559,54 @@ module.exports = (test, dependencies) => {
         expect(meta.id, 'it should support overriding the default metadata').to.equal(metadata.id)
         expect(meta.type, 'it should support extending the default metadata').to.equal(metadata.type)
         expect(meta.event, 'it should include default metadata that isn\'t overridden').to.equal(eventName)
+      },
+    },
+    'when I unsubscribe from a topic from within an event (once)': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const events = []
+        await topic.subscribe(eventName, async (event, meta) => {
+          await topic.unsubscribe(meta.subscriptionId)
+          events.push(event)
+        })
+
+        await topic.publish(eventName, 'hello')
+        await topic.publish(eventName, 'hello')
+        await topic.publish(eventName, 'hello')
+
+        return { events }
+      },
+      'it should only publish to that event once': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual.events.length).to.equal(1)
+      },
+    },
+    'when I unsubscribe from a topic from outside of an event': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const events = []
+        const { subscriptionId } = await topic.subscribe(eventName, async (event, meta) => {
+          events.push(event)
+        })
+
+        await topic.publish(eventName, 'hello')
+        await topic.unsubscribe(subscriptionId)
+        await topic.publish(eventName, 'hello')
+        await topic.publish(eventName, 'hello')
+
+        return { events }
+      },
+      'it should only publish to that event once': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual.events.length).to.equal(1)
       },
     },
     'failure modes': {
