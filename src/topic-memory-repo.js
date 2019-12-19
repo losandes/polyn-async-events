@@ -10,8 +10,8 @@ module.exports = {
     const { required } = polynBp
     const { immutable } = polynIm
     const { makeComposite } = id
-    const parseComposite = (id) => {
-      const parsed = id.parseComposite(id)
+    const parseComposite = (_id) => {
+      const parsed = id.parseComposite(_id)
 
       return {
         topic: parsed[0],
@@ -88,9 +88,9 @@ module.exports = {
       try {
         const options = new CancellationOptions({ id })
 
-        for (let i = 0; i < subscriptions[options.name].length; i += 1) {
-          if (subscriptions[options.name][i].id === options.id) {
-            subscriptions[options.name].splice(i, 1)
+        for (let i = 0; i < subscriptions[options.name].receivers.length; i += 1) {
+          if (subscriptions[options.name].receivers[i].id === options.id) {
+            subscriptions[options.name].receivers.splice(i, 1)
             return resolve(true)
           }
         }
