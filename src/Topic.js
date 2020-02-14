@@ -4,7 +4,7 @@ module.exports = {
   factory: (polynBp, polynIm, TopicMemoryRepo, Publisher) => {
     'use strict'
 
-    const { registerBlueprint } = polynBp
+    const { optional, registerBlueprint } = polynBp
     const { immutable } = polynIm
 
     registerBlueprint('TopicRepo', {
@@ -17,18 +17,20 @@ module.exports = {
     const TopicOptions = immutable('TopicOptions', {
       topic: 'string',
       repo: 'TopicRepo?',
+      timeout: optional('number').withDefault(3000),
     })
 
     function Topic (pubsubOptions) {
       const options = new TopicOptions(pubsubOptions)
 
       const repo = options.repo || TopicMemoryRepo(options.topic)
-      const { publish, emit } = Publisher(options.topic, repo)
+      const { publish, emit, deliver } = Publisher(options.topic, repo, options.timeout)
 
       return {
         name: options.topic,
         publish,
         emit,
+        deliver,
         subscribe: repo.subscribe,
         unsubscribe: repo.unsubscribe,
         // below are undocumented and subject to change or deprecation

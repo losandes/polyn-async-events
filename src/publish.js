@@ -1,10 +1,10 @@
 module.exports = {
   name: 'publish',
   dependencies: ['@polyn/blueprint', '@polyn/immutable', 'id', 'allSettled'],
-  factory: (polynBp, polynIm, id, allSettled) => (topic, repo) => {
+  factory: (polynBp, polynIm, id, allSettled) => (topic, repo, defaultTimeout) => {
     'use strict'
 
-    const { is, required } = polynBp
+    const { is, optional, required } = polynBp
     const { immutable } = polynIm
     const { makeComposite } = id
     const eventName = ({ value }) => typeof value === 'string' && value.toLowerCase().trim()
@@ -12,6 +12,7 @@ module.exports = {
     const PublishOptions = immutable('PublishOptions', {
       name: required('string').from(eventName),
       body: 'any?',
+      timeout: optional('number').withDefault(defaultTimeout),
     })
 
     /**
@@ -107,6 +108,57 @@ module.exports = {
         return { count: subscriptions.length, meta: makeMeta() }
       })
 
-    return { publish, emit }
+    /**
+     * Emits a topic event to all subscribers, and waits for each subscription
+     * to complete before returning a response.
+     * @param event {string} - the name of the event being published
+     * @param body {any?} - the payload to send to subscribers, if applicable
+     * @param meta {object?} - metadata to include with the event metadata
+     * @returns {Promise<number>} - the number of subscriptions the topic was emitted to
+     */
+    const deliver = (event, body, meta) => {
+      const { name, timeout } = new PublishOptions({ name: event, body })
+
+      return repo.getSubscriptions(name)
+        .then((_subscriptions) => {
+          const id = makeComposite(topic, name)
+          const time = Date.now()
+          const makeMeta = _makeMetaFactory(name)(id, time, meta)
+
+          const subscriptions = _subscriptions.map((subscription) => {
+            try {
+              return new Promise((resolve, reject) => {
+                const to = setTimeout(() => {
+                  reject(new Error('Delivery timed out'))
+                }, timeout)
+
+                const ack = (err, res) => {
+                  clearTimeout(to)
+                  if (err) {
+                    reject(err)
+                  }
+                  resolve(res)
+                }
+
+                subscription.receiver(body, makeMeta(subscription), ack)
+              })
+            } catch (e) {
+              return Promise.reject(e)
+            }
+          })
+
+          return { subscriptions, makeMeta }
+        }).then(({ subscriptions, makeMeta }) => {
+          return allSettled(subscriptions).then((results) => {
+            return {
+              count: subscriptions.length,
+              meta: makeMeta(),
+              results,
+            }
+          })
+        })
+    }
+
+    return { publish, emit, deliver }
   },
 }
