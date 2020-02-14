@@ -1,6 +1,6 @@
 # @polyn/async-events
 
-An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), and publishing events (waiting for subscriptions to be satisfied).
+An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), publishing events (waiting for subscriptions to be satisfied), and delivering events (waiting for subscriptions to acknowledge receipt).
 
 ## Getting Started
 
@@ -240,5 +240,117 @@ logger.subscribe('info', (event, meta) => {
   //     event: 'info'
   //   }
   // }
+})()
+```
+
+### Delivering to a Topic
+
+Delivering is the same as publishing, except that subscribers are presented with an `ack` argument, which needs to be called within a timeout period (default is 3 seconds). The `ack` argument accepts standard `callback` conventions: `(err: Error, result: any)`.
+
+```JavaScript
+const { Topic } = require('@polyn/async-events')
+
+const logger = new Topic({ topic: 'logger', timeout: 3000 })
+
+// subscribe to 1 type of event
+logger.subscribe('error', (event, meta) => {
+  // do something with the event, or metadata
+})
+
+// subscribe to many types of events
+logger.subscribe(
+  ['trace', 'debug', 'info', 'warn', 'error', 'fatal'],
+  (event, meta, ack) => {
+    console.log(`${meta.time}::${JSON.stringify(event)}`)
+    ack(null, event)
+  }
+)
+
+(async () => {
+  const result1 = await logger.deliver('info', 'hello world')
+  // 1575998814931::"hello world"
+  const result2 = await logger.deliver('info', { message: 'hello world' })
+  // 1575998820661::{"message":"hello world"}
+})()
+```
+
+#### Delivering With Metadata
+
+```JavaScript
+const { Topic } = require('@polyn/async-events')
+
+const logger = new Topic({ topic: 'logger', timeout: 3000 })
+
+// subscribe to many types of events
+logger.subscribe(
+  ['trace', 'debug', 'info', 'warn', 'error', 'fatal'],
+  (event, meta, ack) => {
+    console.log(`${meta.verbosity}::${meta.time}::${JSON.stringify(event)}`)
+    ack(null, event)
+  }
+)
+
+(async () => {
+  const result1 = await logger.deliver('info', 'hello world', { verbosity: 'INFO' })
+  // INFO::1575998814931::"hello world"
+  const result2 = await logger.deliver('info', { message: 'hello world' }, { verbosity: 'INFO' })
+  // INFO::1575998820661::{"message":"hello world"}
+})()
+```
+
+#### Delivery Results
+
+The results of delivering an event returns the number of subscriptions that were published to, and the event metadata.
+
+```JavaScript
+const { Topic } = require('@polyn/async-events')
+
+const logger = new Topic({ topic: 'logger', timeout: 3000 })
+let count = 0
+
+// this example returns `true` the first time, and then throws after that
+logger.subscribe('info', (event, meta, ack) => {
+  if (count === 0) {
+    count += 1
+    return ack(null, true)
+  }
+
+  ack(new Error('BOOM!'))
+})
+
+(async () => {
+  console.log(await logger.deliver('info', 'hello world'))
+  /*
+   * {
+   *   count: 1,
+   *   meta: {
+   *     id: 'delivery_logger::info::c9tx9xej',
+   *     time: 1581641381559,
+   *     topic: 'delivery_logger',
+   *     event: 'info'
+   *   },
+   *   results: [ { status: 'fulfilled', value: true } ]
+   * }
+   */
+
+  console.log(await logger.deliver('info', 'hello world'))
+  /*
+  * {
+  *   count: 1,
+  *   meta: {
+  *     id: 'delivery_logger::info::9iv7v8co',
+  *     time: 1581641381559,
+  *     topic: 'delivery_logger',
+  *     event: 'info'
+  *   },
+  *   results: [
+  *     {
+  *       status: 'rejected',
+  *       reason: Error: BOOM!
+  *           at ...
+  *     }
+  *   ]
+  * }
+  */
 })()
 ```

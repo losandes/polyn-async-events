@@ -561,6 +561,125 @@ module.exports = (test, dependencies) => {
         expect(meta.event, 'it should include default metadata that isn\'t overridden').to.equal(eventName)
       },
     },
+    'when I subscribe to multiple events in one call, and then deliver to that topic': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        const eventNames = [String(random()), String(random()), String(random())]
+        const handler = (event, meta, ack) => ack(null, { acknowledged: event })
+        const subscriptions = await topic.subscribe([eventNames[0], eventNames[1], eventNames[2]], handler)
+
+        // these should not be published to
+        await topic.subscribe(String(random()), handler)
+        await topic.subscribe(String(random()), handler)
+
+        return { topic, eventNames, subscriptions }
+      },
+      when: async ({ topic, eventNames, subscriptions }) => {
+        const expected = [random(), random(), random()]
+        const publishResults = [
+          await topic.deliver(eventNames[0], expected[0]),
+          await topic.deliver(eventNames[1], expected[1]),
+          await topic.deliver(eventNames[2], expected[2]),
+        ]
+
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({
+            expected,
+            topic,
+            eventNames,
+            subscriptions,
+            publishResults,
+          }), 50) // wait for the async subscriptions to finish
+        })
+      },
+      'it should return the count of emissions': (expect) => (err, actual) => {
+        expect(err).to.be.null
+        const { publishResults } = actual
+        expect(publishResults[0].count).to.equal(1)
+        expect(publishResults[1].count).to.equal(1)
+        expect(publishResults[2].count).to.equal(1)
+      },
+      'it should deliver data to each subscription': (expect) => (err, actual) => {
+        expect(err).to.be.null
+        const { expected, publishResults } = actual
+        publishResults.forEach(({ results }, idx) => {
+          expect(results[0].value.acknowledged).to.equal(expected[idx])
+        })
+      },
+    },
+    'when I deliver an event that has no subscriptions': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const publishResult = await topic.deliver('foo', 42)
+
+        return {
+          topic,
+          publishResult,
+        }
+      },
+      'it should return the count of emissions as being 0': (expect) => (err, actual) => {
+        expect(err).to.be.null
+        const { publishResult } = actual
+        expect(publishResult.count).to.equal(0)
+      },
+    },
+    'when I deliver metadata with an event': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        const eventName = String(random())
+        const handler = (event, meta, ack) => ack(null, { acknowledged: { event, meta } })
+        const subscriptions = [
+          await topic.subscribe(eventName, handler),
+          await topic.subscribe(eventName, handler),
+          await topic.subscribe(eventName, async (event, meta, ack) => new Promise((resolve) => {
+            setTimeout(() => resolve(handler(event, meta, ack)), 30)
+          })),
+        ]
+
+        // these should not be published to
+        await topic.subscribe(String(random()), handler)
+        await topic.subscribe(String(random()), handler)
+
+        return { topic, eventName, subscriptions }
+      },
+      when: async ({ topic, eventName, subscriptions }) => {
+        const expected = random()
+        const metadata = { type: 'INFO', id: 1 }
+        const publishResult = await topic.deliver(eventName, expected, metadata)
+
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({
+            expected,
+            metadata,
+            topic,
+            eventName,
+            subscriptions,
+            publishResult,
+          }), 100) // wait for the subscriptions to finish
+        })
+      },
+      'it should publish event metadata to each subscription': (expect) => (err, actual) => {
+        expect(err).to.be.null
+        const { eventName, metadata, publishResult } = actual
+        publishResult.results.forEach(({ value }) => {
+          expect(value.acknowledged.meta.id, 'it should support overriding the default metadata').to.equal(metadata.id)
+          expect(value.acknowledged.meta.type, 'it should support extending the default metadata').to.equal(metadata.type)
+          expect(value.acknowledged.meta.event, 'it should include default metadata that isn\'t overridden').to.equal(eventName)
+        })
+      },
+      'the publish result should include event metadata': (expect) => (err, actual) => {
+        expect(err).to.be.null
+        const { eventName, publishResult, metadata } = actual
+        const { value } = publishResult.results[0]
+
+        expect(value.acknowledged.meta.id, 'it should support overriding the default metadata').to.equal(metadata.id)
+        expect(value.acknowledged.meta.type, 'it should support extending the default metadata').to.equal(metadata.type)
+        expect(value.acknowledged.meta.event, 'it should include default metadata that isn\'t overridden').to.equal(eventName)
+      },
+    },
     'when I unsubscribe from a topic from within an event (once)': {
       given: async () => {
         const topic = new Topic({ topic: String(random()) })
@@ -718,6 +837,23 @@ module.exports = (test, dependencies) => {
         'it should throw': (expect) => (err) => {
           expect(err).to.not.be.null
           expect(err.message.includes('Invalid PublishOptions')).to.equal(true)
+        },
+      },
+      'when a subscriber doesn\'t acknowledge a delivery': {
+        when: async () => {
+          const topic = new Topic({ topic: String(random()), timeout: 5 })
+          const eventName = String(random())
+          topic.subscribe(eventName, (event, meta, ack) => {})
+          const actual = await topic.deliver(eventName, 42)
+
+          return actual
+        },
+        'it should reject': (expect) => (err, actual) => {
+          expect(err).to.be.null
+          expect(actual.results[0].status).to.equal('rejected')
+          expect(actual.results[0].reason.message.includes(
+            'Delivery timed out',
+          )).to.equal(true)
         },
       },
     },
