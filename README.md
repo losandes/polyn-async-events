@@ -2,6 +2,8 @@
 
 An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), publishing events (waiting for subscriptions to be satisfied), and delivering events (waiting for subscriptions to acknowledge receipt).
 
+Also extends NodeJS' events package with a [WildcardEmitter](#wildcardemitter) which adds support for namespaces (i.e. wildcard listeners), and to listen for events that have no subscribers.
+
 ## Getting Started
 
 ```Shell
@@ -353,4 +355,74 @@ logger.subscribe('info', (event, meta, ack) => {
   * }
   */
 })()
+```
+
+## WildcardEmitter
+
+### Creating a WildcardEmitter
+
+```JavaScript
+const { WildcardEmitter } = require('@polyn/async-events')
+
+const emitter = new WildcardEmitter()
+const customEmitter = new WildcardEmitter({
+  delimiter: '.',
+  wildcard: '*',
+  noSubscriptionsEvent: 'no_listeners',
+})
+```
+
+### Subscribing with wildcards
+
+The default delimiter is `_`, and the default wildcard is `%`.
+
+```JavaScript
+const { WildcardEmitter } = require('@polyn/async-events')
+
+const emitter = new WildcardEmitter()
+
+emitter.on('%', (...args) => {
+  console.log('%', args)
+})
+
+emitter.on('foo_%', (...args) => {
+  console.log('foo_%', args)
+})
+
+emitter.on('foo_bar_%', (...args) => {
+  console.log('foo_bar_%', args)
+})
+
+emitter.on('foo_bar_baz', (...args) => {
+  console.log('foo_bar_baz', args)
+})
+
+emitter.emit('foo_bar_baz', 'one', { two: 2 })
+/* prints:
+ * '%' [{ event: 'foo_bar_baz' }, 'one', { two: 2 }]
+ * 'foo_%' [{ event: 'foo_bar_baz' }, 'one', { two: 2 }]
+ * 'foo_bar_%' [{ event: 'foo_bar_baz' }, 'one', { two: 2 }]
+ * 'foo_bar_baz' ['one', { two: 2 }]
+ */
+```
+
+> NOTE that events that match exactly receive only the `...args`, while events that match on a wildcard receive the event name as the first argument.
+
+### Subscribing to events that have no listeners
+
+Subscribing to events that have no listeners is helpful for debugging, and to make sure you don't have events that are silently going nowhere. The default event the WildcardEmitter publishes to when no listeners are found is, `''`.
+
+```JavaScript
+const { WildcardEmitter } = require('@polyn/async-events')
+
+const emitter = new WildcardEmitter()
+
+emitter.on('', (...args) => {
+  console.log('no listeners!', args)
+})
+
+emitter.emit('foo_bar_baz', 'one', { two: 2 })
+/* prints:
+ * 'no listeners!' [{ event: 'foo_bar_baz' }, 'one', { two: 2 }]
+ */
 ```
