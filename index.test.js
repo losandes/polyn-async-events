@@ -1,7 +1,7 @@
 module.exports = (test, dependencies) => {
   'use strict'
 
-  const { Topic, id } = dependencies
+  const { Topic, id, WildcardEmitter } = dependencies
   const random = id.makeId
 
   return test('given @polyn/async-events', {
@@ -726,6 +726,120 @@ module.exports = (test, dependencies) => {
       'it should only publish to that event once': (expect) => (err, actual) => {
         expect(err).to.equal(null)
         expect(actual.events.length).to.equal(1)
+      },
+    },
+    'given WildcardEmitter': {
+      given: () => new WildcardEmitter(),
+      'when I emit an event that has a 1:1 subscription': {
+        when: (emitter) => {
+          const results = []
+          const noSubscriberResults = []
+          emitter.on('foo_bar', (...args) => results.push(args))
+          emitter.emit('foo_bar', 'one', { two: 'two' })
+          emitter.on('', (...args) => noSubscriberResults.push(args))
+
+          return { results, noSubscriberResults }
+        },
+        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual.noSubscriberResults.length).to.equal(0)
+          expect(actual.results.length).to.equal(1)
+          expect(actual.results[0]).to.deep.equal(['one', { two: 'two' }])
+        },
+      },
+      'when I emit an event that has a wildcard subscription': {
+        when: (emitter) => {
+          const results = []
+          const noSubscriberResults = []
+          emitter.on('%', (...args) => results.push({ wild: args }))
+          emitter.on('foo_%', (...args) => results.push({ foo_wild: args }))
+          emitter.on('foo_bar_%', (...args) => results.push({ foo_bar_wild: args }))
+          emitter.on('', (...args) => noSubscriberResults.push(args))
+          emitter.emit('foo_bar_baz', 'one', { two: 'two' })
+
+          return { results, noSubscriberResults }
+        },
+        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual.noSubscriberResults.length).to.equal(0)
+          expect(actual.results.length).to.equal(3)
+          expect(actual.results[0]).to.deep.equal({ wild: [{ event: 'foo_bar_baz' }, 'one', { two: 'two' }]})
+          expect(actual.results[1]).to.deep.equal({ foo_wild: [{ event: 'foo_bar_baz' }, 'one', { two: 'two' }]})
+          expect(actual.results[2]).to.deep.equal({ foo_bar_wild: [{ event: 'foo_bar_baz' }, 'one', { two: 'two' }]})
+        },
+      },
+      'when I emit an event that has no subscriptions': {
+        when: (emitter) => {
+          const results = []
+          const noSubscriberResults = []
+          emitter.on('', (...args) => noSubscriberResults.push(args))
+          emitter.emit('foo_bar', 'one', { two: 'two' })
+
+          return { results, noSubscriberResults }
+        },
+        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual.results.length).to.equal(0)
+          expect(actual.noSubscriberResults.length).to.equal(1)
+          expect(actual.noSubscriberResults[0]).to.deep.equal([{ event: 'foo_bar' }, 'one', { two: 'two' }])
+        },
+      },
+      'when I set my own delimeter, wildcard symbol, and noSubscriptionsEvent': {
+        given: () => new WildcardEmitter({ delimiter: '.', wildcard: '*', noSubscriptionsEvent: 'no_listeners' }),
+        'when I emit an event that has a 1:1 subscription': {
+          when: (emitter) => {
+            const results = []
+            const noSubscriberResults = []
+            emitter.on('foo.bar', (...args) => results.push(args))
+            emitter.emit('foo.bar', 'one', { two: 'two' })
+            emitter.on('no_listeners', (...args) => noSubscriberResults.push(args))
+
+            return { results, noSubscriberResults }
+          },
+          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+            expect(err).to.equal(null)
+            expect(actual.noSubscriberResults.length).to.equal(0)
+            expect(actual.results.length).to.equal(1)
+            expect(actual.results[0]).to.deep.equal(['one', { two: 'two' }])
+          },
+        },
+        'when I emit an event that has a wildcard subscription': {
+          when: (emitter) => {
+            const results = []
+            const noSubscriberResults = []
+            emitter.on('*', (...args) => results.push({ wild: args }))
+            emitter.on('foo.*', (...args) => results.push({ foo_wild: args }))
+            emitter.on('foo.bar.*', (...args) => results.push({ foo_bar_wild: args }))
+            emitter.on('no_listeners', (...args) => noSubscriberResults.push(args))
+            emitter.emit('foo.bar.baz', 'one', { two: 'two' })
+
+            return { results, noSubscriberResults }
+          },
+          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+            expect(err).to.equal(null)
+            expect(actual.noSubscriberResults.length).to.equal(0)
+            expect(actual.results.length).to.equal(3)
+            expect(actual.results[0]).to.deep.equal({ wild: [{ event: 'foo.bar.baz' }, 'one', { two: 'two' }]})
+            expect(actual.results[1]).to.deep.equal({ foo_wild: [{ event: 'foo.bar.baz' }, 'one', { two: 'two' }]})
+            expect(actual.results[2]).to.deep.equal({ foo_bar_wild: [{ event: 'foo.bar.baz' }, 'one', { two: 'two' }]})
+          },
+        },
+        'when I emit an event that has no subscriptions': {
+          when: (emitter) => {
+            const results = []
+            const noSubscriberResults = []
+            emitter.on('no_listeners', (...args) => noSubscriberResults.push(args))
+            emitter.emit('foo.bar', 'one', { two: 'two' })
+
+            return { results, noSubscriberResults }
+          },
+          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+            expect(err).to.equal(null)
+            expect(actual.results.length).to.equal(0)
+            expect(actual.noSubscriberResults.length).to.equal(1)
+            expect(actual.noSubscriberResults[0]).to.deep.equal([{ event: 'foo.bar' }, 'one', { two: 'two' }])
+          },
+        },
       },
     },
     'failure modes': {

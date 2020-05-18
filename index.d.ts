@@ -3,6 +3,8 @@
 // Definitions by: Andy Wright <https://github.com/losandes>
 // TypeScript Version: 2.1
 
+import * as EventEmitter from 'events';
+
 export interface IEventMeta {
   id: string;
   time: number;
@@ -62,4 +64,13 @@ declare class Topic implements ITopic {
   emit (name: string, body: any, meta?: any): Promise<IEventOutput>;
   subscribe (names: string | string[], receiver: IReceiver): Promise<ISubscriptionResult|ISubscriptionResult[]>;
   unsubscribe (id: string): Promise<boolean>;
+}
+
+declare class WildcardEmitter extends EventEmitter {
+  constructor (options?: any | {
+    delimiter?: string;
+    wildcard?: string;
+    noSubscriptionsEvent?: string;
+  });
+  makeWildcards(event: string | symbol): string[];
 }

@@ -1,6 +1,6 @@
 {
   "name": "@polyn/async-events",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), and publishing events (waiting for subscriptions to be satisfied)",
   "main": "index.js",
   "types": "index.d.ts",
