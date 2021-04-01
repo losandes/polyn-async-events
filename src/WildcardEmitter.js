@@ -28,7 +28,7 @@ module.exports = {
 
         return [
           ...[this.wildcard],
-          ...indexes.map((idx) => `${event.substring(0, idx + 1)}${this.wildcard}`)
+          ...indexes.map((idx) => `${event.substring(0, idx + 1)}${this.wildcard}`),
         ]
       }
 

@@ -740,7 +740,7 @@ module.exports = (test, dependencies) => {
 
           return { results, noSubscriberResults }
         },
-        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+        'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
           expect(err).to.equal(null)
           expect(actual.noSubscriberResults.length).to.equal(0)
           expect(actual.results.length).to.equal(1)
@@ -759,7 +759,7 @@ module.exports = (test, dependencies) => {
 
           return { results, noSubscriberResults }
         },
-        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+        'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
           expect(err).to.equal(null)
           expect(actual.noSubscriberResults.length).to.equal(0)
           expect(actual.results.length).to.equal(3)
@@ -777,7 +777,7 @@ module.exports = (test, dependencies) => {
 
           return { results, noSubscriberResults }
         },
-        'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+        'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
           expect(err).to.equal(null)
           expect(actual.results.length).to.equal(0)
           expect(actual.noSubscriberResults.length).to.equal(1)
@@ -796,7 +796,7 @@ module.exports = (test, dependencies) => {
 
             return { results, noSubscriberResults }
           },
-          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
             expect(err).to.equal(null)
             expect(actual.noSubscriberResults.length).to.equal(0)
             expect(actual.results.length).to.equal(1)
@@ -815,7 +815,7 @@ module.exports = (test, dependencies) => {
 
             return { results, noSubscriberResults }
           },
-          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
             expect(err).to.equal(null)
             expect(actual.noSubscriberResults.length).to.equal(0)
             expect(actual.results.length).to.equal(3)
@@ -833,7 +833,7 @@ module.exports = (test, dependencies) => {
 
             return { results, noSubscriberResults }
           },
-          'it should behave like a standar EventEmitter': (expect) => (err, actual) => {
+          'it should behave like a standard EventEmitter': (expect) => (err, actual) => {
             expect(err).to.equal(null)
             expect(actual.results.length).to.equal(0)
             expect(actual.noSubscriberResults.length).to.equal(1)
