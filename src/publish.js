@@ -110,7 +110,7 @@ module.exports = {
 
     /**
      * Emits a topic event to all subscribers, and waits for each subscription
-     * to complete before returning a response.
+     * to acknowledge receipt before returning a response.
      * @param event {string} - the name of the event being published
      * @param body {any?} - the payload to send to subscribers, if applicable
      * @param meta {object?} - metadata to include with the event metadata
