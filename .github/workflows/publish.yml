@@ -38,26 +38,18 @@ jobs:
       # echo "EVENT_CONTEXT:"
       # echo "$EVENT_CONTEXT"
 
-    - name: Install Packages
+    - name: Install packages
       run: |
         npm i -g pnpm
         pnpm install
 
-    - name: Build Browser Distribution
-      run: pnpm run build --if-present
-
-    - name: Run Tests
+    - name: Run tests
       env:
         CI: true
       run: pnpm run test:coverage:ci
 
-    - name: Commit Browser Build
-      run: |
-        git add -A
-        git commit -m "cicd: updates browser distribution"
-
     # upgrade npm version in package.json to the tag used in the release.
-    - name: Set Package Version
+    - name: Set package version
       run: npm version ${{ github.event.release.tag_name }}
 
     # publish the package to NPM and set the tag name to the branch name that
@@ -69,7 +61,7 @@ jobs:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: npm publish --tag ${{ github.event.release.target_commitish }}
 
-    - name: Push Version Change to latest
+    - name: Push version change to latest
       env:
         # The secret is passed automatically. Nothing to configure.
         github-token: ${{ secrets.GITHUB_TOKEN }}
