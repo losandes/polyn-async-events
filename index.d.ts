@@ -47,6 +47,12 @@ export interface ITopicRepo {
 interface ITopicOptions {
   topic: string;
   repo?: ITopicRepo;               // default is in memory repo
+  timeout?: number;
+  reportVerbosity?: string;         // ^(all|errors|none)$;
+  reportEventNames?: {
+    emitted?: string;
+    error?: string;
+  }
 }
 
 export interface ITopic {

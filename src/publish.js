@@ -1,12 +1,13 @@
 module.exports = {
   name: 'publish',
   dependencies: ['@polyn/blueprint', '@polyn/immutable', 'id', 'allSettled'],
-  factory: (polynBp, polynIm, id, allSettled) => (topic, repo, defaultTimeout) => {
+  factory: (polynBp, polynIm, id, allSettled) => (topicOptions, repo) => {
     'use strict'
 
     const { is, optional, required } = polynBp
     const { immutable } = polynIm
     const { makeComposite } = id
+    const { topic } = topicOptions
 
     /**
      * The outcome of settling all subscriptions for an event that was published,
@@ -39,9 +40,9 @@ module.exports = {
       body: 'any?',
       meta: optional('any').withDefault({}),
       reportVerbosity: required(/^(all|errors|none)$/).from(({ output }) =>
-        output.meta.reportVerbosity || 'errors'
+        output.meta.reportVerbosity || topicOptions.reportVerbosity
       ),
-      timeout: optional('number').withDefault(defaultTimeout),
+      timeout: optional('number').withDefault(topicOptions.timeout),
     })
 
     /**
@@ -156,9 +157,9 @@ module.exports = {
 
       results.forEach((result) => {
         if (reportVerbosity === 'all' && result.status === 'fulfilled') {
-          emit('_emitted', result.value, { ...meta, ...{ reportVerbosity: 'none' }})
+          emit(topicOptions.reportEventNames.fulfilled, result.value, { ...meta, ...{ reportVerbosity: 'none' }})
         } else if (result.status === 'rejected') {
-          emit('error', result.reason, { ...meta, ... { reportVerbosity: 'none' }})
+          emit(topicOptions.reportEventNames.rejected, result.reason, { ...meta, ... { reportVerbosity: 'none' }})
         }
       })
 

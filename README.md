@@ -37,20 +37,38 @@ logger.subscribe(
 )
 ```
 
-### Subscribing to subscriber errors
+### Subscribing to subscriber errors and reporting
+
+When creating a topic, you can set the reportVerbosity, as well as the event names that are used to emit fullfilment and rejection states. By default, this library will emit errors using an 'error' event. You can turn off 'error' emission by setting `reportVerbosity to 'none'. By default, this library does not emit fulfullment. You can turn fulfilment emission on by setting `reportVerbosity` to 'all'. The default event for fulfilment is `fulfilled`.
+
+The topic level verbosity can be overriden by passing a `reportVerbosity` value as part of the `meta` argument when emitting, publishing, or delivering to a topic (shown below).
+
+
 
 ```JavaScript
 const { Topic } = require('@polyn/async-events')
 
-const emitter = new Topic({ topic: 'emitter' })
+const emitter = new Topic({
+  topic: 'emitter',
+  reportVerbosity: 'errors', // all|errors|none; 'errors' is default
+  reportEventNames: {        // emample uses the default values
+    fulfilled: 'fulfilled',
+    rejected: 'error',
+  },
+})
 
+emitter.subscribe('something', async (event, meta) => { /*...*/ })
 emitter.subscribe('something', async (event, meta) => { throw new Error('BOOM!') })
+emitter.subscribe('fulfilled', (event, meta) => {
+  // do something with the event, or metadata
+  console.log(event, meta)
+})
 emitter.subscribe('error', (event, meta) => {
   // do something with the event, or metadata
   console.log(event, meta)
 })
 
-emitter.publish('something', 42)
+emitter.publish('something', 42, { reportVerbosity: 'all' })
 // emits an 'error' event because a subscriber threw
 ```
 

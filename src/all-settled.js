@@ -7,7 +7,7 @@ module.exports = {
     /**
      * The outcome of a Promise that was executed with `allSettled`
      * @typedef {Object} AllSettledResolution
-     * @property {^(fullfilled|rejected)$} status - whether the promise called "resolve" or "reject"
+     * @property {^(fulfilled|rejected)$} status - whether the promise called "resolve" or "reject"
      * @property {any?} value - the value that was passed to "resolve", if any
      * @property {Error} reason - the error that was passed to "reject", if any
      */

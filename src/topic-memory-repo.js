@@ -63,8 +63,8 @@ module.exports = {
     /**
      * Initializes the topic's event, if it doesn't exist, and adds a subscription to
      * that event
-     * @param name {string|string[]} - the name(s) of the event(s)
-     * @param receiver {function} - the handler/callback that will be called when that event is published
+     * @param {string|string[]} name - the name(s) of the event(s)
+     * @param {function} receiver - the handler/callback that will be called when that event is published
      * @returns {Promise<string|string[]>} - an id per name, which can be used to unsubscribe
      */
     const subscribe = (names, receiver) => new Promise((resolve, reject) => {
@@ -81,7 +81,7 @@ module.exports = {
     /**
      * Removes a subscription from a topic event, by id (the string returned by the
      * `subscribe` function)
-     * @param id {string} - the id of the subscription to remove
+     * @param {string} id - the id of the subscription to remove
      * @returns {Promise<boolean>} - whether or not the subscriber was removed
      */
     const unsubscribe = (id) => new Promise((resolve, reject) => {
@@ -103,7 +103,7 @@ module.exports = {
 
     /**
      * Gets subscriptions by topic name
-     * @param name {string} - the name of the topic to get subscriptions for
+     * @param {string} name - the name of the topic to get subscriptions for
      * @returns {Promise<{id: string, receiver: function}[]>} - the receivers that are registered for the topic
      */
     const getSubscriptions = (name) => new Promise((resolve, reject) => {
@@ -118,7 +118,7 @@ module.exports = {
 
     /**
      * Checks whether a topic has any subscriptions
-     * @param name {string} - the name of the topic to check
+     * @param {string} name - the name of the topic to check
      * @returns {Promise<boolean>} - whether or not the topic has any subscriptions
      */
     const hasSubscriptions = (name) => new Promise((resolve, reject) => {
