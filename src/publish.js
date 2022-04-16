@@ -7,11 +7,40 @@ module.exports = {
     const { is, optional, required } = polynBp
     const { immutable } = polynIm
     const { makeComposite } = id
-    const eventName = ({ value }) => typeof value === 'string' && value.toLowerCase().trim()
 
+    /**
+     * The outcome of settling all subscriptions for an event that was published,
+     * emitted, or delivered
+     * @typedef {Object} ShippingResult
+     * @property {Promise<any?>} subscriptions - the results of the subscriptions that were emitted to
+     * @property {Function} makeMeta - a function that will produce metadata for the event that was published, emitted, or delivered
+     */
+    /**
+     * The outcome of publishing, emitting, or delivering events
+     * @typedef {Object} EmissionResult
+     * @property {number} count - the number of subscribers emitted to
+     * @property {any} meta - the metadata about the events that were emitted
+     * @property {object[]?} results - the outcomes of the emissions
+     */
+
+    /**
+     * The options for publishing an event
+     * @typedef {Object} PublishOptions
+     * @property {string} name - the name of the event
+     * @property {any?} body - the information to emit, publish, or deliver
+     * @property {any?} meta - additional context or emission options to be attached to the event
+     * @property {(^(all|errors|none)$)?} reportVerbosity - whether to report all outcomes, errors, or nothing (default is 'errors')
+     * @property {number?} timeout - the amount of time allowed to ellapse before rejecting a delivery acknowledgement
+     */
     const PublishOptions = immutable('PublishOptions', {
-      name: required('string').from(eventName),
+      name: required('string').from(
+        ({ value }) => typeof value === 'string' && value.toLowerCase().trim()
+      ),
       body: 'any?',
+      meta: optional('any').withDefault({}),
+      reportVerbosity: required(/^(all|errors|none)$/).from(({ output }) =>
+        output.meta.reportVerbosity || 'errors'
+      ),
       timeout: optional('number').withDefault(defaultTimeout),
     })
 
@@ -21,14 +50,15 @@ module.exports = {
      *  1. The topic, upon topic creation
      *  2. The name, when publish, or emit is called
      *  3. the id, and time, for each subscription that is being published
-     * @param topic {string} - the topic that is being published to
-     * @param eventName {string} - the name of the event being published
-     * @param id {string} - the event id (a composite of the topic, event, and a unique identifier
-     * @param time {number} - the time the event was published
-     * @param meta {any?} - optional metadata to append to the event
-     * @param subscription {Subscription} - the subscription being published to
+     * @curried
+     * @param {string} topic - the topic that is being published to
+     * @param {string} eventName - the name of the event being published
+     * @param {string} id - the event id (a composite of the topic, event, and a unique identifier
+     * @param {number} time - the time the event was published
+     * @param {any?} meta - optional metadata to append to the event
+     * @param {Subscription} subscription - the subscription being published to
      */
-    const _makeMetaFactory = ((topic) => (eventName) => (id, time, meta) => (subscription) => {
+    const makeMetaFactory = ((topic) => (eventName) => (id, time, meta) => (subscription) => {
       const metadata = { ...{ id, time, topic, event: eventName }, ...meta }
 
       if (subscription) {
@@ -39,21 +69,18 @@ module.exports = {
     })(topic)
 
     /**
-     * Emits a topic event to all subscribers, and waits for each subscription
-     * to complete before returning a response.
-     * @param event {string} - the name of the event being published
-     * @param body {any?} - the payload to send to subscribers, if applicable
-     * @param meta {object?} - metadata to include with the event metadata
-     * @returns {Promise<number>} - the number of subscriptions the topic was emitted to
+     * Emits a topic event to all subscribers, and returns the promises for each emission
+     * @param {PublishOptions} publishOptions - the options for publishing an event
+     * @returns {ShippingResult} - The outcome of settling all subscriptions for an event that was published, emitted, or delivered
      */
-    const _publish = (event, body, meta) => {
-      const { name } = new PublishOptions({ name: event, body })
+    const shipToSubscribers = (publishOptions) => {
+      const { name, body, meta } = publishOptions
 
       return repo.getSubscriptions(name)
         .then((_subscriptions) => {
           const id = makeComposite(topic, name)
           const time = Date.now()
-          const makeMeta = _makeMetaFactory(name)(id, time, meta)
+          const makeMeta = makeMetaFactory(name)(id, time, meta)
 
           const subscriptions = _subscriptions.map((subscription) => {
             try {
@@ -69,95 +96,146 @@ module.exports = {
     }
 
     /**
-     * Emits a topic event to all subscribers, and waits for each subscription
-     * to complete before returning a response.
-     * @param event {string} - the name of the event being published
-     * @param body {any?} - the payload to send to subscribers, if applicable
-     * @param meta {object?} - metadata to include with the event metadata
-     * @returns {Promise<number>} - the number of subscriptions the topic was emitted to
+     * Emits to all subscribers, a topic event with delivery request receipt
+     * requests (ack), and returns the promises for each emission
+     * @param {PublishOptions} publishOptions - the options for publishing an event
+     * @returns {ShippingResult} - The outcome of settling all subscriptions for an event that was published, emitted, or delivered
      */
-    const publish = (event, body, meta) => _publish(event, body, meta)
-      .then(({ subscriptions, makeMeta }) => {
-        return allSettled(subscriptions).then((results) => {
-          return {
-            count: subscriptions.length,
-            meta: makeMeta(),
-            results,
-          }
-        })
-      })
-
-    /**
-     * Emits a topic event to all subscribers. Does not wait for subscriptions to
-     * complete before returning a response.
-     * @param event {string} - the name of the event being published
-     * @param body {any?} - the payload to send to subscribers, if applicable
-     * @param meta {object?} - metadata to include with the event metadata
-     * @returns {Promise<number>} - the number of subscriptions the topic was emitted to
-     */
-    const emit = (event, body, meta) => _publish(event, body, meta)
-      .then(({ subscriptions, makeMeta }) => {
-        allSettled(subscriptions).then((results) => {
-          return {
-            count: subscriptions.length,
-            meta: makeMeta(),
-            results,
-          }
-        })
-
-        return { count: subscriptions.length, meta: makeMeta() }
-      })
-
-    /**
-     * Emits a topic event to all subscribers, and waits for each subscription
-     * to acknowledge receipt before returning a response.
-     * @param event {string} - the name of the event being published
-     * @param body {any?} - the payload to send to subscribers, if applicable
-     * @param meta {object?} - metadata to include with the event metadata
-     * @returns {Promise<number>} - the number of subscriptions the topic was emitted to
-     */
-    const deliver = (event, body, meta) => {
-      const { name, timeout } = new PublishOptions({ name: event, body })
+    shipToSubscribers.withAckRequests = (publishOptions) => {
+      const { name, body, meta, timeout } = publishOptions
 
       return repo.getSubscriptions(name)
         .then((_subscriptions) => {
           const id = makeComposite(topic, name)
           const time = Date.now()
-          const makeMeta = _makeMetaFactory(name)(id, time, meta)
+          const makeMeta = makeMetaFactory(name)(id, time, meta)
 
-          const subscriptions = _subscriptions.map((subscription) => {
-            try {
-              return new Promise((resolve, reject) => {
-                const to = setTimeout(() => {
-                  reject(new Error('Delivery timed out'))
-                }, timeout)
+          const subscriptions = _subscriptions.map((subscription) =>
+            new Promise((resolve, reject) => {
+              const to = setTimeout(() => {
+                reject(new Error('Delivery timed out'))
+              }, timeout)
 
-                const ack = (err, res) => {
-                  clearTimeout(to)
-                  if (err) {
-                    reject(err)
-                  }
-                  resolve(res)
+              const ack = (err, res) => {
+                clearTimeout(to)
+                if (err) {
+                  reject(err)
                 }
+                resolve(res)
+              }
 
-                subscription.receiver(body, makeMeta(subscription), ack)
-              })
-            } catch (e) {
-              return Promise.reject(e)
-            }
-          })
+              try {
+                const actual = subscription.receiver(body, makeMeta(subscription), ack)
+                const actualPromise = is.promise(actual) ? actual : Promise.resolve(actual)
+                actualPromise.catch(ack)
+              } catch (e) {
+                ack(e)
+              }
+            })
+          )
 
           return { subscriptions, makeMeta }
-        }).then(({ subscriptions, makeMeta }) => {
-          return allSettled(subscriptions).then((results) => {
+        })
+    }
+
+    /**
+     * Emits the results of shipping to subscribers.
+     * @curried
+     * @param {PublishOptions} publishOptions - the options for publishing an event
+     * @param {ShippingResult} results - the output from allSettled
+     * @returns {ShippingResult} - (pass-through) The outcome of settling all subscriptions for an event that was published, emitted, or delivered
+     */
+    const maybeReport = (publishOptions) => (results) => {
+      const { meta, reportVerbosity } = publishOptions
+
+      if (reportVerbosity === 'none') {
+        // we are either in recursion and want to avoid an infinite loop
+        // or the caller doesn't want reporting
+        return results
+      }
+
+      results.forEach((result) => {
+        if (reportVerbosity === 'all' && result.status === 'fulfilled') {
+          emit('_emitted', result.value, { ...meta, ...{ reportVerbosity: 'none' }})
+        } else if (result.status === 'rejected') {
+          emit('error', result.reason, { ...meta, ... { reportVerbosity: 'none' }})
+        }
+      })
+
+      return results
+    }
+
+    /**
+     * Emits a topic event to all subscribers, and waits for each subscription
+     * to complete before returning a response.
+     * @param {string} event - the name of the event being published
+     * @param {any?} body - the payload to send to subscribers, if applicable
+     * @param {object?} meta - metadata to include with the event metadata
+     * @param {(^(all|errors|none)$)?} meta.reportVerbosity - whether to report all outcomes, errors, or nothing
+     * @returns {EmissionResult} - The outcome of publishing, emitting, or delivering events
+     */
+    const publish = (event, body, meta) => {
+      const publishOptions = new PublishOptions({ name: event, body, meta })
+
+      return shipToSubscribers(publishOptions).then(({ subscriptions, makeMeta }) =>
+        allSettled(subscriptions)
+          .then(maybeReport(publishOptions))
+          .then((results) => {
             return {
               count: subscriptions.length,
               meta: makeMeta(),
               results,
             }
           })
-        })
-    }
+      ) // /shipToSubscribers.then
+    } // /publish
+
+    /**
+     * Emits a topic event to all subscribers. Does not wait for subscriptions to
+     * complete before returning a response.
+     * @param {string} event - the name of the event being emitted
+     * @param {any?} body - the payload to send to subscribers, if applicable
+     * @param {object?} meta - metadata to include with the event metadata
+     * @param {(^(all|errors|none)$)?} meta.reportVerbosity - whether to report all outcomes, errors, or nothing
+     * @returns {EmissionResult} - The outcome of publishing, emitting, or delivering events
+     */
+    const emit = async (event, body, meta) => {
+      const publishOptions = new PublishOptions({ name: event, body, meta })
+
+      return shipToSubscribers(publishOptions).then(({ subscriptions, makeMeta }) => {
+        // do not await allSettled
+        allSettled(subscriptions)
+          .then(maybeReport(publishOptions))
+
+        return { count: subscriptions.length, meta: makeMeta() }
+      }) // /shipToSubscribers.then
+    } // /publish
+
+    /**
+     * Emits a topic event to all subscribers, and waits for each subscription
+     * to acknowledge receipt before returning a response.
+     * @param {string} event - the name of the event being delivered
+     * @param {any?} body - the payload to send to subscribers, if applicable
+     * @param {object?} meta - metadata to include with the event metadata
+     * @param {(^(all|errors|none)$)?} meta.reportVerbosity - whether to report all outcomes, errors, or nothing
+     * @returns {EmissionResult} - The outcome of publishing, emitting, or delivering events
+     */
+    const deliver = (event, body, meta) => {
+      const publishOptions = new PublishOptions({ name: event, body, meta })
+
+      return shipToSubscribers.withAckRequests(publishOptions)
+        .then(({ subscriptions, makeMeta }) =>
+          allSettled(subscriptions)
+            .then(maybeReport(publishOptions))
+            .then((results) => {
+              return {
+                count: subscriptions.length,
+                meta: makeMeta(),
+                results,
+              }
+            })
+        ) // /shipToSubscribers.withAckRequests.then
+    } // /deliver
 
     return { publish, emit, deliver }
   },

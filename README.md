@@ -26,7 +26,7 @@ const { Topic } = require('@polyn/async-events')
 const logger = new Topic({ topic: 'logger' })
 
 // subscribe to 1 type of event
-logger.subscribe('error', (event, meta) => {
+logger.subscribe('info', (event, meta) => {
   // do something with the event, or metadata
 })
 
@@ -35,6 +35,23 @@ logger.subscribe(
   ['trace', 'debug', 'info', 'warn', 'error', 'fatal'],
   (event, meta) => console.log(`${meta.time}::${JSON.stringify(event)}`)
 )
+```
+
+### Subscribing to subscriber errors
+
+```JavaScript
+const { Topic } = require('@polyn/async-events')
+
+const emitter = new Topic({ topic: 'emitter' })
+
+emitter.subscribe('something', async (event, meta) => { throw new Error('BOOM!') })
+emitter.subscribe('error', (event, meta) => {
+  // do something with the event, or metadata
+  console.log(event, meta)
+})
+
+emitter.publish('something', 42)
+// emits an 'error' event because a subscriber threw
 ```
 
 #### Event Metadata
@@ -62,13 +79,13 @@ const logger = new Topic({ topic: 'logger' })
 
 // Subscribing to an event once can be accomplished by unsubscribing
 // from within the event handler
-logger.subscribe('error', (event, meta) => {
+logger.subscribe('info', (event, meta) => {
   logger.unsubscribe(meta.subscriptionId)
   console.log(event)
 })
 
 // Unsubscribing can also be accomplished outside of the event
-const { subscriptionId } = logger.subscribe('error', (event, meta) => {
+const { subscriptionId } = logger.subscribe('info', (event, meta) => {
   console.log(event)
 })
 
@@ -85,7 +102,7 @@ const { Topic } = require('@polyn/async-events')
 const logger = new Topic({ topic: 'logger' })
 
 // subscribe to 1 type of event
-logger.subscribe('error', (event, meta) => {
+logger.subscribe('info', (event, meta) => {
   // do something with the event, or metadata
 })
 
@@ -172,7 +189,7 @@ const { Topic } = require('@polyn/async-events')
 const logger = new Topic({ topic: 'logger' })
 
 // subscribe to 1 type of event
-logger.subscribe('error', (event, meta) => {
+logger.subscribe('info', (event, meta) => {
   // do something with the event, or metadata
 })
 
@@ -255,7 +272,7 @@ const { Topic } = require('@polyn/async-events')
 const logger = new Topic({ topic: 'logger', timeout: 3000 })
 
 // subscribe to 1 type of event
-logger.subscribe('error', (event, meta) => {
+logger.subscribe('info', (event, meta) => {
   // do something with the event, or metadata
 })
 
