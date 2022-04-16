@@ -728,6 +728,55 @@ module.exports = (test, dependencies) => {
         expect(actual.events.length).to.equal(1)
       },
     },
+    'when I unsubscribe from a topic that was already unsubscribed': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const { subscriptionId } = await topic.subscribe(eventName, () => {})
+        await topic.unsubscribe(subscriptionId)
+        // unsubscribe again - the subscription should already be gone
+        return topic.unsubscribe(subscriptionId)
+      },
+      'it should resolve false': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(false)
+      },
+    },
+    'when I unsubscribe from a topic for which there was no corresponding subscription': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const { subscriptionId } = await topic.subscribe(eventName, () => {})
+        const parts = subscriptionId.split('::')
+        return topic.unsubscribe(`${parts[0]}::${parts[1]}::${String(random())}`)
+      },
+      'it should resolve false': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(false)
+      },
+    },
+    'when I check to see if subscriptions exist': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        await topic.subscribe(eventName, () => {})
+
+        return topic.hasSubscriptions(eventName)
+      },
+      'it should resolve true': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(1)
+      },
+    },
     'given WildcardEmitter': {
       given: () => new WildcardEmitter(),
       'when I emit an event that has a 1:1 subscription': {
@@ -922,6 +971,17 @@ module.exports = (test, dependencies) => {
           expect(err.message.includes('Invalid SubscriptionOptions')).to.equal(true)
         },
       },
+      'when I unsubscribe from a topic with an invalid id': {
+        given: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          return { topic }
+        },
+        when: async ({ topic }) => topic.unsubscribe(String(random())),
+        'it should reject': (expect) => (err) => {
+          expect(err).to.not.equal(null)
+          expect(err.message).to.include('Invalid CancellationOptions')
+        },
+      },
       'when I publish with a null event name': {
         when: async () => {
           const topic = new Topic({ topic: String(random()) })
@@ -980,6 +1040,26 @@ module.exports = (test, dependencies) => {
         'it should throw': (expect) => (err) => {
           expect(err).to.not.be.null
           expect(err.message.includes('Invalid PublishOptions')).to.equal(true)
+        },
+      },
+      'when I getSubscriptions with invalid options': {
+        when: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          await topic.getSubscriptions(42)
+        },
+        'it should throw': (expect) => (err) => {
+          expect(err).to.not.be.null
+          expect(err.message.includes('Invalid GetSubscriptionOptions')).to.equal(true)
+        },
+      },
+      'when I hasSubscriptions with invalid options': {
+        when: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          await topic.hasSubscriptions(42)
+        },
+        'it should throw': (expect) => (err) => {
+          expect(err).to.not.be.null
+          expect(err.message.includes('Invalid GetSubscriptionOptions')).to.equal(true)
         },
       },
       'when I publish and a synchronous handler throws': {
