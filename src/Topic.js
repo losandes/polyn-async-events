@@ -51,7 +51,7 @@ module.exports = {
     function Topic (topicOptions) {
       const options = new TopicOptions(topicOptions)
 
-      const repo = options.repo ?? TopicMemoryRepo(options.topic)
+      const repo = options.repo || TopicMemoryRepo(options.topic)
       const { publish, emit, deliver } = Publisher(options, repo)
 
       return {
