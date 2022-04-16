@@ -4,7 +4,7 @@ module.exports = {
   factory: (polynBp, polynIm, TopicMemoryRepo, Publisher) => {
     'use strict'
 
-    const { optional, registerBlueprint, required } = polynBp
+    const { optional, registerBlueprint } = polynBp
     const { immutable } = polynIm
 
     /**

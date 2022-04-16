@@ -35,12 +35,12 @@ module.exports = {
      */
     const PublishOptions = immutable('PublishOptions', {
       name: required('string').from(
-        ({ value }) => typeof value === 'string' && value.toLowerCase().trim()
+        ({ value }) => typeof value === 'string' && value.toLowerCase().trim(),
       ),
       body: 'any?',
       meta: optional('any').withDefault({}),
       reportVerbosity: required(/^(all|errors|none)$/).from(({ output }) =>
-        output.meta.reportVerbosity || topicOptions.reportVerbosity
+        output.meta.reportVerbosity || topicOptions.reportVerbosity // eslint-disable-line comma-dangle
       ),
       timeout: optional('number').withDefault(topicOptions.timeout),
     })
@@ -132,7 +132,7 @@ module.exports = {
               } catch (e) {
                 ack(e)
               }
-            })
+            }),
           )
 
           return { subscriptions, makeMeta }
@@ -157,9 +157,9 @@ module.exports = {
 
       results.forEach((result) => {
         if (reportVerbosity === 'all' && result.status === 'fulfilled') {
-          emit(topicOptions.reportEventNames.fulfilled, result.value, { ...meta, ...{ reportVerbosity: 'none' }})
+          emit(topicOptions.reportEventNames.fulfilled, result.value, { ...meta, ...{ reportVerbosity: 'none' } })
         } else if (result.status === 'rejected') {
-          emit(topicOptions.reportEventNames.rejected, result.reason, { ...meta, ... { reportVerbosity: 'none' }})
+          emit(topicOptions.reportEventNames.rejected, result.reason, { ...meta, ...{ reportVerbosity: 'none' } })
         }
       })
 
@@ -187,7 +187,7 @@ module.exports = {
               meta: makeMeta(),
               results,
             }
-          })
+          }) // eslint-disable-line comma-dangle
       ) // /shipToSubscribers.then
     } // /publish
 
@@ -234,7 +234,7 @@ module.exports = {
                 meta: makeMeta(),
                 results,
               }
-            })
+            }) // eslint-disable-line comma-dangle
         ) // /shipToSubscribers.withAckRequests.then
     } // /deliver
 
