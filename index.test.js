@@ -1,7 +1,7 @@
 module.exports = (test, dependencies) => {
   'use strict'
 
-  const { Topic, id, WildcardEmitter } = dependencies
+  const { allSettled, Topic, id, WildcardEmitter } = dependencies
   const random = id.makeId
 
   return test('given @polyn/async-events', {
@@ -728,6 +728,55 @@ module.exports = (test, dependencies) => {
         expect(actual.events.length).to.equal(1)
       },
     },
+    'when I unsubscribe from a topic that was already unsubscribed': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const { subscriptionId } = await topic.subscribe(eventName, () => {})
+        await topic.unsubscribe(subscriptionId)
+        // unsubscribe again - the subscription should already be gone
+        return topic.unsubscribe(subscriptionId)
+      },
+      'it should resolve false': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(false)
+      },
+    },
+    'when I unsubscribe from a topic for which there was no corresponding subscription': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        const { subscriptionId } = await topic.subscribe(eventName, () => {})
+        const parts = subscriptionId.split('::')
+        return topic.unsubscribe(`${parts[0]}::${parts[1]}::${String(random())}`)
+      },
+      'it should resolve false': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(false)
+      },
+    },
+    'when I check to see if subscriptions exist': {
+      given: async () => {
+        const topic = new Topic({ topic: String(random()) })
+        return { topic }
+      },
+      when: async ({ topic }) => {
+        const eventName = String(random())
+        await topic.subscribe(eventName, () => {})
+
+        return topic.hasSubscriptions(eventName)
+      },
+      'it should resolve true': (expect) => (err, actual) => {
+        expect(err).to.equal(null)
+        expect(actual).to.equal(1)
+      },
+    },
     'given WildcardEmitter': {
       given: () => new WildcardEmitter(),
       'when I emit an event that has a 1:1 subscription': {
@@ -841,8 +890,37 @@ module.exports = (test, dependencies) => {
           },
         },
       },
+      'when makeWildcards is called with a non-string event': {
+        when: (emitter) => emitter.makeWildcards({}),
+        'it should return the default wildcard': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual).to.deep.equal(['%'])
+        },
+      },
+      'when makeWildcards is called with a string that has no delimiter': {
+        when: (emitter) => emitter.makeWildcards('delimiter'),
+        'it should return the default wildcard': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual).to.deep.equal(['%'])
+        },
+      }
     },
     'failure modes': {
+      'when something other than a promise is executed by allSettled': {
+        when: async () => allSettled([() => {}]),
+        'it should report that the promise was rejected': (expect) => (err, actual) => {
+          expect(err).to.equal(null)
+          expect(actual[0].status).to.equal('rejected')
+          expect(actual[0].reason.message).to.equal('promise.then is not a function')
+        }
+      },
+      'when id.makeTemplate is called with a length less than 1': {
+        when: () => id.makeTemplate(0),
+        'it should throw': (expect) => (err) => {
+          expect(err).to.not.equal(null)
+          expect(err.message).to.equal('Invalid id length: expected length to be a number greater than 0')
+        }
+      },
       'when I subscribe with a null event name': {
         when: async () => {
           const topic = new Topic({ topic: String(random()) })
@@ -891,6 +969,17 @@ module.exports = (test, dependencies) => {
         'it should throw': (expect) => (err) => {
           expect(err).to.not.be.null
           expect(err.message.includes('Invalid SubscriptionOptions')).to.equal(true)
+        },
+      },
+      'when I unsubscribe from a topic with an invalid id': {
+        given: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          return { topic }
+        },
+        when: async ({ topic }) => topic.unsubscribe(String(random())),
+        'it should reject': (expect) => (err) => {
+          expect(err).to.not.equal(null)
+          expect(err.message).to.include('Invalid CancellationOptions')
         },
       },
       'when I publish with a null event name': {
@@ -951,6 +1040,278 @@ module.exports = (test, dependencies) => {
         'it should throw': (expect) => (err) => {
           expect(err).to.not.be.null
           expect(err.message.includes('Invalid PublishOptions')).to.equal(true)
+        },
+      },
+      'when I getSubscriptions with invalid options': {
+        when: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          await topic.getSubscriptions(42)
+        },
+        'it should throw': (expect) => (err) => {
+          expect(err).to.not.be.null
+          expect(err.message.includes('Invalid GetSubscriptionOptions')).to.equal(true)
+        },
+      },
+      'when I hasSubscriptions with invalid options': {
+        when: async () => {
+          const topic = new Topic({ topic: String(random()) })
+          await topic.hasSubscriptions(42)
+        },
+        'it should throw': (expect) => (err) => {
+          expect(err).to.not.be.null
+          expect(err.message.includes('Invalid GetSubscriptionOptions')).to.equal(true)
+        },
+      },
+      'when I publish and a synchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          topic.subscribe('message', (value) => { return value })
+          topic.subscribe('message', (value) => { return value })
+          topic.subscribe('message', () => { throw new Error('Boom1') })
+          topic.subscribe('message', () => { throw new Error('Boom2') })
+          topic.subscribe('message', () => { throw new Error('Boom3') })
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.publish('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
+        },
+      },
+      'when I publish and an asynchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          const fulfilled = (value) => new Promise((resolve) => {
+            setTimeout(() => resolve(value), 1)
+          })
+          const rejected = (message) => () => new Promise((resolve, reject) => {
+            setTimeout(() => reject(new Error(message)), 1)
+          })
+
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', rejected('Boom1'))
+          topic.subscribe('message', rejected('Boom2'))
+          topic.subscribe('message', rejected('Boom3'))
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.publish('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
+        },
+      },
+      'when I emit and a synchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          topic.subscribe('message', (value) => { return value })
+          topic.subscribe('message', (value) => { return value })
+          topic.subscribe('message', () => { throw new Error('Boom1') })
+          topic.subscribe('message', () => { throw new Error('Boom2') })
+          topic.subscribe('message', () => { throw new Error('Boom3') })
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.emit('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
+        },
+      },
+      'when I emit and an asynchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          const fulfilled = (value) => new Promise((resolve) => {
+            setTimeout(() => resolve(value), 1)
+          })
+          const rejected = (message) => () => new Promise((resolve, reject) => {
+            setTimeout(() => reject(new Error(message)), 1)
+          })
+
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', rejected('Boom1'))
+          topic.subscribe('message', rejected('Boom2'))
+          topic.subscribe('message', rejected('Boom3'))
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.emit('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
+        },
+      },
+      'when I deliver and a synchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          topic.subscribe('message', (value, meta, ack) => { ack(null, value) })
+          topic.subscribe('message', (value, meta, ack) => { ack(null, value) })
+          topic.subscribe('message', () => { throw new Error('Boom1') })
+          topic.subscribe('message', () => { throw new Error('Boom2') })
+          topic.subscribe('message', () => { throw new Error('Boom3') })
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.deliver('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
+        },
+      },
+      'when I deliver and an asynchronous handler throws': {
+        when: async () => {
+          const events = []
+          const topic = new Topic({ topic: String(random()) })
+          const fulfilled = (value, meta, ack) => new Promise((resolve) => {
+            setTimeout(() => {
+              ack(null, value)
+              resolve(value)
+            }, 1)
+          })
+          const rejected = (message) => () => new Promise((resolve, reject) => {
+            setTimeout(() => reject(new Error(message)), 1)
+          })
+
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', fulfilled)
+          topic.subscribe('message', rejected('Boom1'))
+          topic.subscribe('message', rejected('Boom2'))
+          topic.subscribe('message', rejected('Boom3'))
+          topic.subscribe('fulfilled', (value, meta) => events.push({ value, meta }))
+          topic.subscribe('error', (err, meta) => events.push({ err, meta }))
+          await topic.deliver('message', 42, { reportVerbosity: 'all' })
+
+          while (events.length < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+
+          return { events }
+        },
+        'it should emit errors for each failed emission': (expect) => (err, actual) => {
+          expect(err).to.be.null
+
+          const fulfilled = actual.events.filter((event) => event.meta.event === 'fulfilled')
+          const rejected = actual.events.filter((event) => event.meta.event === 'error')
+          const boom1 = rejected.filter((event) => event.err.message === 'Boom1')
+          const boom2 = rejected.filter((event) => event.err.message === 'Boom2')
+          const boom3 = rejected.filter((event) => event.err.message === 'Boom3')
+
+          expect(actual.events.length).to.equal(5)
+          expect(fulfilled.length).to.equal(2)
+          expect(rejected.length).to.equal(3)
+          expect(boom1.length).to.equal(1)
+          expect(boom2.length).to.equal(1)
+          expect(boom3.length).to.equal(1)
+
+          fulfilled.forEach((event) => expect(event.value).to.equal(42))
         },
       },
       'when a subscriber doesn\'t acknowledge a delivery': {

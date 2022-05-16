@@ -49,6 +49,6 @@ module.exports = {
      */
     const parseComposite = (id) => id.split(ID_DELIM)
 
-    return { makeId, makeComposite, parseComposite }
+    return { makeId, makeComposite, parseComposite, makeTemplate }
   },
 }
