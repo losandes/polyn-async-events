@@ -16,12 +16,12 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x, 14.x, 16.x]
+        node-version: [14.x, 16.x, 18.x]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
 
@@ -42,7 +42,7 @@ jobs:
     - name: Lint the repo
       run: pnpm run lint
 
-    - name: Run tests
+    - name: Run tests and coverage
       env:
         CI: true
-      run: pnpm run test:coverage:ci
+      run: pnpm run test:ci

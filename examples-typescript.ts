@@ -4,7 +4,8 @@ import { Topic, ITopic, IEventMeta, ISubscriptionResult } from '.';
 
 const test = Suite({
   name: 'polyn-pubsub-ts',
-  assertionLibrary: Chai.expect
+  assertionLibrary: Chai.expect,
+  reporter: 'tap'
 })
 
 test('using TypeScript', {

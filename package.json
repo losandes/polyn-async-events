@@ -5,41 +5,60 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "pre-push": "pnpm run lint && pnpm test",
+    "// lint": "SECTION ========================================================",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
-    "test": "node test.js -r nyan && pnpm run test:ts -- -r nyan",
+    "// test": "SECTION ========================================================",
+    "dev": "nodemon -e js --exec 'pnpm run test:cjs'",
+    "test": "pnpm run test:ts && pnpm run test:cjs",
+    "test:ci": "pnpm run test:ts:ci && pnpm run coverage",
+    "test:cjs": "node test.js -r nyan",
+    "test:cjs:ci": "node test.js -r tap",
     "test:ts": "tsc -p ./tsconfig.json && node ./examples-typescript.js",
-    "test:coverage": "nyc node test.js",
-    "test:coverage:ci": "mkdir ./coverage && touch ./coverage/lcov.info && pnpm run test:ts -- -r tap && nyc node test.js -r tap,summary && nyc report --reporter=text-lcov > ./coverage/lcov.info"
+    "test:ts:ci": "pnpm run test:ts",
+    "// coverage": "SECTION ====================================================",
+    "coverage": "c8 --reporter=text --reporter=text-summary pnpm run test:cjs:ci",
+    "coverage:ci": "mkdir -p ./coverage && touch ./coverage/lcov.info; c8 report --reporter=text-lcov > ./coverage/lcov.info",
+    "coveralls": "pnpm run coverage; c8 report --reporter=text-lcov | coveralls"
   },
   "pre-push": [
-    "pre-push"
+    "lint",
+    "test:ci"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/losandes/polyn-async-events.git"
+  },
+  "author": "Andy Wright <andes.collab@gmail.com> (https://github.com/losandes)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/losandes/polyn-async-events/issues"
+  },
+  "homepage": "https://github.com/losandes/polyn-async-events#readme",
   "keywords": [
     "pubsub",
     "event",
     "events",
     "emitter"
   ],
-  "author": "losandes",
-  "license": "MIT",
   "dependencies": {
-    "@polyn/blueprint": "~2.6.0",
-    "@polyn/immutable": "~1.0.11"
+    "@polyn/blueprint": "^2.7.0",
+    "@polyn/immutable": "^1.1.2"
   },
   "devDependencies": {
-    "@types/chai": "~4.2.22",
-    "@types/node": "~14.14.45",
-    "chai": "~4.3.6",
-    "eslint": "~7.23.0",
-    "eslint-config-standard": "~16.0.3",
-    "eslint-plugin-import": "~2.22.1",
-    "eslint-plugin-node": "~11.1.0",
-    "eslint-plugin-promise": "~4.3.1",
-    "nyc": "~15.1.0",
-    "pre-push": "~0.1.2",
-    "supposed": "~1.1.6",
-    "typescript": "~4.2.4"
+    "@types/chai": "^4.3.4",
+    "@types/node": "^18.14.4",
+    "c8": "^7.13.0",
+    "chai": "^4.3.7",
+    "eslint": "^8.35.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "nodemon": "^2.0.20",
+    "pre-push": "^0.1.4",
+    "supposed": "^1.3.2",
+    "typescript": "^4.9.5"
   }
 }
