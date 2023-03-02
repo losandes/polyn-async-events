@@ -42,7 +42,17 @@ jobs:
     - name: Lint the repo
       run: pnpm run lint
 
-    - name: Run tests and coverage
+    - name: Run tests
       env:
         CI: true
       run: pnpm run test:ci
+
+    - name: Produce coverage report
+      env:
+        CI: true
+      run: pnpm run coverage:ci
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}

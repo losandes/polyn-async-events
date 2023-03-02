@@ -1,7 +1,10 @@
+.coveralls.yml
 .DS_Store
-.gitignore
 .eslintrc
+.github
+.gitignore
 CONTRIBUTING.md
+coverage
 npm-debug.log
 build.js
 examples-typescript.js

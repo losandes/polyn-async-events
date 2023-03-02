@@ -1,6 +1,8 @@
 .DS_Store
 .python-version
 
+.coveralls.yml
+
 # Test Output
 examples-typescript.js
 
