@@ -1,5 +1,10 @@
 # @polyn/async-events
 
+[![tests](https://github.com/losandes/polyn-async-events/actions/workflows/pull-requests.yml/badge.svg)](https://github.com/losandes/polyn-async-events/actions/workflows/pull-requests.yml)
+[![test coverage](https://coveralls.io/repos/github/losandes/polyn-async-events/badge.svg?branch=latest)](https://coveralls.io/github/losandes/polyn-async-events?branch=latest)
+[![known vulnerabilities](https://snyk.io/test/github/losandes/polyn-async-events/badge.svg)](https://snyk.io/test/github/losandes/polyn-async-events)
+
+
 An async event emitter for NodeJS with support for emitting events (not waiting for subscriptions to be satisfied), publishing events (waiting for subscriptions to be satisfied), and delivering events (waiting for subscriptions to acknowledge receipt).
 
 Also extends NodeJS' events package with a [WildcardEmitter](#wildcardemitter) which adds support for namespaces (i.e. wildcard listeners), and to listen for events that have no subscribers.

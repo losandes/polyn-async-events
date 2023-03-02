@@ -46,3 +46,8 @@ jobs:
       env:
         CI: true
       run: pnpm run test:ci
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
