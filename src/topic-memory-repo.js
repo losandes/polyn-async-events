@@ -52,7 +52,7 @@ module.exports = {
 
       const subscription = {
         id: makeComposite(topic, name),
-        receiver: receiver,
+        receiver,
       }
 
       subscriptions[name].receivers.push(subscription)
